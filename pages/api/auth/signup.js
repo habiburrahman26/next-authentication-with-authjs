@@ -1,9 +1,33 @@
-import { connectDb } from '@/lib/db';
+import { hashedPassword } from '../../../lib/auth';
+import { connectDb } from '../../../lib/db';
 
 export default async function handler(req, res) {
-  const { email, password } = req.body.data;
+  const { email, password } = req.body;
 
-  const client = await connectDb();
+  if (
+    !email ||
+    !email.includes('@') ||
+    !password ||
+    password.trim().length < 7
+  ) {
+    return res
+      .status(422)
+      .json({ message: 'Invalid email or password less than 7 character' });
+  }
 
-  client.db();
+  try {
+    const client = await connectDb();
+    const db = client.db();
+
+    const encryptedPassword = await hashedPassword(password);
+
+    const result = await db.collection('users').insertOne({
+      email: email,
+      password: encryptedPassword,
+    });
+
+    res.status(201).json({ message: 'user created' });
+  } catch (err) {
+    console.log(err);
+  }
 }
